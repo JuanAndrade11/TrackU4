@@ -41,7 +41,11 @@ import com.uninorte.edu.co.tracku.networking.WebServiceManagerInterface;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener,
@@ -334,6 +338,8 @@ public class MainActivity extends AppCompatActivity
 
     @Override
     public void LocationReceived(double latitude, double longitude) {
+        String date = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(new Date());
+        DecimalFormat df = new DecimalFormat("0.000000");
         this.latitude=latitude;
         this.longitude=longitude;
         ((TextView)findViewById(R.id.latitude_value)).setText(latitude+"");
@@ -343,7 +349,7 @@ public class MainActivity extends AppCompatActivity
             googleMap.
                     addMarker(new MarkerOptions().
                             position(new LatLng(latitude,longitude))
-                            .title("you are here")
+                            .title("<"+df.format(latitude)+","+df.format(longitude)+">"+date)
                     );
             googleMap.moveCamera(
                     CameraUpdateFactory.newLatLng(

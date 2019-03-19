@@ -20,7 +20,7 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
-public class RegistrationActivity extends Activity implements View.OnClickListener, Response.ErrorListener, Response.Listener<String> {
+public class RegistrationActivity extends Activity implements View.OnClickListener{
 
     EditText userName;
 
@@ -51,11 +51,7 @@ public class RegistrationActivity extends Activity implements View.OnClickListen
 
     }
 
-    private void enviaDatos(){
-        EnviaDatos enviaDatos = new EnviaDatos(userName.getText().toString());
-        Request<?> request = enviaDatos.getRequest(this,this);
-        AppController.getInstance().addToRequestQueue(request);
-    }
+
 
     @Override
     protected void onResume() {
@@ -74,20 +70,6 @@ public class RegistrationActivity extends Activity implements View.OnClickListen
 
     @Override
     public void onClick(View view) {
-        enviaDatos();
-    }
 
-    @Override
-    public void onErrorResponse(VolleyError error) {
-        Log.e("ErrorResponse", error.getMessage());
-    }
-
-    @Override
-    public void onResponse(String response) {
-        GsonBuilder builder = new GsonBuilder();
-        builder.setExclusionStrategies(new DefaultExclusionStrategy());
-        Gson gson = builder.create();
-
-        Datos modelo = gson.fromJson(response, Datos.class);
     }
 }
