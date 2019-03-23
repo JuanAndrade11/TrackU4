@@ -1,6 +1,7 @@
 package com.uninorte.edu.co.tracku;
 
 import android.content.Context;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
@@ -9,13 +10,19 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+
 import org.osmdroid.api.IMapController;
 import org.osmdroid.config.Configuration;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
+import org.osmdroid.views.overlay.Marker;
+import org.osmdroid.views.overlay.Overlay;
+import org.osmdroid.views.overlay.OverlayItem;
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider;
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
+
+import java.util.List;
 
 
 /**
@@ -99,6 +106,7 @@ public class OmsFragment extends Fragment {
                         new GpsMyLocationProvider(this.getContext()),map);
         myLocationNewOverlay.enableMyLocation();
         this.map.getOverlays().add(myLocationNewOverlay);
+
     }
 
     // TODO: Rename method, update argument and hook method into UI event
@@ -140,12 +148,22 @@ public class OmsFragment extends Fragment {
         void onFragmentInteraction(Uri uri);
     }
 
-    public void setCenter(double latitude, double longitude){
+    public void setCenter(double latitude, double longitude) {
         IMapController mapController = map.getController();
         mapController.setZoom(9.5);
         GeoPoint newCenter = new GeoPoint(latitude, longitude);
         mapController.setCenter(newCenter);
 
+        Marker startMarker = new Marker(map);
+        startMarker.setPosition(newCenter);
+        startMarker.setAnchor(Marker.ANCHOR_CENTER,Marker.ANCHOR_BOTTOM);
+        startMarker.setTitle("You are here");
+        map.getOverlays().add(startMarker);
+
+
+
 
     }
+
+
 }

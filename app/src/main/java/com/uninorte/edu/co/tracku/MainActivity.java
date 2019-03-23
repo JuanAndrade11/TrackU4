@@ -6,6 +6,8 @@ import android.arch.persistence.room.Room;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
@@ -35,7 +37,9 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import com.uninorte.edu.co.tracku.com.uninorte.edu.co.tracku.gps.GPSManager;
 import com.uninorte.edu.co.tracku.com.uninorte.edu.co.tracku.gps.GPSManagerInterface;
 import com.uninorte.edu.co.tracku.database.core.TrackUDatabaseManager;
+import com.uninorte.edu.co.tracku.database.entities.Historical;
 import com.uninorte.edu.co.tracku.database.entities.User;
+import com.uninorte.edu.co.tracku.networking.WebService;
 import com.uninorte.edu.co.tracku.networking.WebServiceManager;
 import com.uninorte.edu.co.tracku.networking.WebServiceManagerInterface;
 
@@ -43,6 +47,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -57,8 +62,11 @@ public class MainActivity extends AppCompatActivity
     double latitude;
     double longitude;
     OmsFragment omsFragment;
+    private String user;
+    public WebService webService;
 
     static TrackUDatabaseManager INSTANCE;
+
 
     static TrackUDatabaseManager getDatabase(final Context context) {
         if (INSTANCE == null) {
@@ -66,7 +74,7 @@ public class MainActivity extends AppCompatActivity
                 if (INSTANCE == null) {
                     INSTANCE= Room.databaseBuilder(context,
                             TrackUDatabaseManager.class, "database-tracku").
-                            allowMainThreadQueries().build();
+                            allowMainThreadQueries().fallbackToDestructiveMigration().build();
                 }
             }
         }
@@ -89,7 +97,7 @@ public class MainActivity extends AppCompatActivity
         return false;
     }
 
-    public boolean userRegistration(String userName,String password){
+    public boolean userRegistration(String userName, String password){
         try{
             User newUser=new User();
             newUser.email=userName;
@@ -101,7 +109,23 @@ public class MainActivity extends AppCompatActivity
         }
         return true;
     }
-
+    public String getUserId(){
+        return getIntent().getStringExtra("userName");
+    }
+    public boolean locationRegistration(String latitude, String longitude, String userID, String date){
+        try{
+            Historical newHisrotical = new Historical();
+            newHisrotical.latitude=latitude;
+            newHisrotical.longitude=longitude;
+            newHisrotical.date=date;
+            newHisrotical.userID=userID;
+            INSTANCE.historicalDao().insertHistorical(newHisrotical);
+        }catch (Exception error){
+            Toast.makeText(this,error.getMessage(),Toast.LENGTH_LONG).show();
+            return false;
+        }
+        return true;
+    }
     public String md5(String s) {
         try {
             // Create MD5 Hash
@@ -129,26 +153,66 @@ public class MainActivity extends AppCompatActivity
         getDatabase(this);
 
         String callType=getIntent().getStringExtra("callType");
+        webService = new WebService();
+        String respuesta;
         if(callType.equals("userLogin")) {
             String userName = getIntent().getStringExtra("userName");
             String password = getIntent().getStringExtra("password");
-
-            if (!userAuth(userName, password)) {
-                Toast.makeText(this, "User not found!", Toast.LENGTH_LONG).show();
-                finish();
+            System.out.println("User login");
+            if(checkConnection()){
+                respuesta = "";
+                try{
+                    respuesta = this.webService.execute("http://192.168.0.8:8080/restweb/webresources/control/getdata?id="+userName+"&pas="+password).get();
+                    if(!respuesta.equals("")){
+                        Toast.makeText(this, "Successful Login!", Toast.LENGTH_LONG).show();
+                        this.user = userName;
+                        checkPermissions();
+                    }else {
+                        Toast.makeText(this, "User not found WS!", Toast.LENGTH_LONG).show();
+                        finish();
+                    }
+                }catch (Exception e){
+                    Toast.makeText(this, "User not found!", Toast.LENGTH_LONG).show();
+                    finish();
+                }
+            }else{
+                if (!userAuth(userName, password)) {
+                    Toast.makeText(this, "User not found!", Toast.LENGTH_LONG).show();
+                    finish();
+                }else{
+                    this.user = userName;
+                    checkPermissions();
+                }
             }
+
 
 
         }else if(callType.equals("userRegistration")) {
             String userName = getIntent().getStringExtra("userName");
             String password = getIntent().getStringExtra("password");
-
-            if (!userRegistration( userName, password)) {
-                Toast.makeText(this, "Error while registering user!", Toast.LENGTH_LONG).show();
-                finish();
-            }else{
-                Toast.makeText(this, "User registered!", Toast.LENGTH_LONG).show();
-                finish();
+            if(checkConnection()){
+                respuesta = "";
+                try{
+                    respuesta = webService.execute("http://192.168.0.8:8080/restweb/webresources/control/query?id="+userName+"&pas="+password).get();
+                    if(!respuesta.equals("")){
+                        Toast.makeText(this, "Successful Register!", Toast.LENGTH_LONG).show();
+                        finish();
+                    }else {
+                        Toast.makeText(this, "Unsuccessful Register WS!"+respuesta, Toast.LENGTH_LONG).show();
+                        finish();
+                    }
+                }catch (Exception e){
+                    Toast.makeText(this, "Unsuccessful Register catch!", Toast.LENGTH_LONG).show();
+                    finish();
+                }
+            }else {
+                if (!userRegistration(userName, password)) {
+                    Toast.makeText(this, "Error while registering user!", Toast.LENGTH_LONG).show();
+                    finish();
+                } else {
+                    Toast.makeText(this, "User registered!", Toast.LENGTH_LONG).show();
+                    finish();
+                }
             }
         }else{
             finish();
@@ -167,12 +231,12 @@ public class MainActivity extends AppCompatActivity
         NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
 
-        SupportMapFragment supportMapFragment=(SupportMapFragment)
-                this.getSupportFragmentManager().findFragmentById(R.id.google_maps_control);
-        supportMapFragment.getMapAsync(this);
+        //SupportMapFragment supportMapFragment=(SupportMapFragment)
+        //        this.getSupportFragmentManager().findFragmentById(R.id.google_maps_control);
+        //supportMapFragment.getMapAsync(this);
 
-        com.github.clans.fab.FloatingActionButton floatingActionButton1=
-                (com.github.clans.fab.FloatingActionButton)
+        FloatingActionButton floatingActionButton1=
+                (FloatingActionButton)
                         findViewById(R.id.zoom_in_button);
         floatingActionButton1.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -183,8 +247,9 @@ public class MainActivity extends AppCompatActivity
             }
         });
 
-        com.github.clans.fab.FloatingActionButton floatingActionButton2=
-                (com.github.clans.fab.FloatingActionButton)
+
+        FloatingActionButton floatingActionButton2=
+                (FloatingActionButton)
                         findViewById(R.id.zoom_out_button);
         floatingActionButton2.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -195,8 +260,8 @@ public class MainActivity extends AppCompatActivity
             }
         });
 
-        com.github.clans.fab.FloatingActionButton floatingActionButton3=
-                (com.github.clans.fab.FloatingActionButton)
+        FloatingActionButton floatingActionButton3=
+                (FloatingActionButton)
                         findViewById(R.id.focus_button);
 
         floatingActionButton3.setOnClickListener(new View.OnClickListener() {
@@ -239,7 +304,7 @@ public class MainActivity extends AppCompatActivity
 
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_settings) {
-            WebServiceManager.CallWebServiceOperation(this,"http://172.17.5.228:8080/WebServiceREST/webresources",
+            WebServiceManager.CallWebServiceOperation(this,"http://192.168.0.8:8080/resttest/webresources",
                     "maincontroller",
                     "operation",
                     "PUT",
@@ -263,7 +328,7 @@ public class MainActivity extends AppCompatActivity
             this.omsFragment =  OmsFragment.newInstance("","");
             android.support.v4.app.FragmentTransaction fragmentTransaction =
                     getSupportFragmentManager().beginTransaction();
-            fragmentTransaction.replace(R.id.google_maps_control, omsFragment);
+            fragmentTransaction.replace(R.id.map_control, omsFragment);
             fragmentTransaction.commit();
         }
 
@@ -344,19 +409,17 @@ public class MainActivity extends AppCompatActivity
         this.longitude=longitude;
         ((TextView)findViewById(R.id.latitude_value)).setText(latitude+"");
         ((TextView)findViewById(R.id.longitude_value)).setText(longitude+"");
-        if(googleMap!=null){
-            googleMap.clear();
-            googleMap.
-                    addMarker(new MarkerOptions().
-                            position(new LatLng(latitude,longitude))
-                            .title("<"+df.format(latitude)+","+df.format(longitude)+">"+date)
-                    );
-            googleMap.moveCamera(
-                    CameraUpdateFactory.newLatLng(
-                            new LatLng(latitude,longitude)));
+        //if (!locationRegistration(String.valueOf(latitude), String.valueOf(longitude),getUserId() ,date)) {
+          //  Toast.makeText(this, "Error while registering location!", Toast.LENGTH_LONG).show();
+            //finish();
+        //}else {
+          //  Toast.makeText(this, "Location registered!", Toast.LENGTH_LONG).show();
+        //finish();
+        //}
+        if(omsFragment!=null) {
+            omsFragment.setCenter(latitude, longitude);
+
         }
-        if(omsFragment!=null)
-            omsFragment.setCenter(latitude,longitude);
     }
 
     @Override
@@ -382,5 +445,15 @@ public class MainActivity extends AppCompatActivity
                 Toast.makeText(getApplication(),message,Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    boolean checkConnection(){
+        ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo networkInfo = connectivityManager.getActiveNetworkInfo();
+        if (networkInfo != null && networkInfo.isConnected()){
+            return true;
+        }else {
+            return false;
+        }
     }
 }

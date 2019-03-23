@@ -63,9 +63,9 @@
     <fragment
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:name="com.google.android.gms.maps.SupportMapFragment"
+        android:name="com.uninorte.edu.co.tracku.OmsFragment"
         tools:context=".MainActivity"
-        android:id="@+id/google_maps_control"
+        android:id="@+id/map_control"
         ></fragment>
 
 </LinearLayout>

@@ -22,7 +22,7 @@ import java.net.URL;
 
 public class RegistrationActivity extends Activity implements View.OnClickListener{
 
-    EditText userName;
+
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -34,13 +34,11 @@ public class RegistrationActivity extends Activity implements View.OnClickListen
             public void onClick(View view) {
                 Intent intentToBeCalled=new Intent();
                 String userName=((EditText)findViewById(R.id.reg_username_value)).getText()+"";
-                String name=((EditText)findViewById(R.id.reg_name_value)).getText()+"";
                 String password=((EditText)findViewById(R.id.reg_password_value)).getText()+"";
                 String passwordConfirmation=((EditText)findViewById(R.id.reg_password_confirmation_value)).getText()+"";
                 if(password.equals(passwordConfirmation)) {
                     intentToBeCalled.putExtra("callType", "userRegistration");
                     intentToBeCalled.putExtra("userName", userName);
-                    intentToBeCalled.putExtra("name", name);
                     intentToBeCalled.putExtra("password", password);
                     intentToBeCalled.setClass(getApplicationContext(), MainActivity.class);
                     startActivity(intentToBeCalled);
