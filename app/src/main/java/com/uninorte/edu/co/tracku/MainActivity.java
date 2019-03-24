@@ -59,6 +59,7 @@ public class MainActivity extends AppCompatActivity
     Activity thisActivity=this;
     GPSManager gpsManager;
     GoogleMap googleMap;
+    OSMActivity osmActivity;
     double latitude;
     double longitude;
     OmsFragment omsFragment;
@@ -157,6 +158,7 @@ public class MainActivity extends AppCompatActivity
         String respuesta;
         if(callType.equals("userLogin")) {
             String userName = getIntent().getStringExtra("userName");
+            user = userName;
             String password = getIntent().getStringExtra("password");
             System.out.println("User login");
             if(checkConnection()){
@@ -409,15 +411,14 @@ public class MainActivity extends AppCompatActivity
         this.longitude=longitude;
         ((TextView)findViewById(R.id.latitude_value)).setText(latitude+"");
         ((TextView)findViewById(R.id.longitude_value)).setText(longitude+"");
-        //if (!locationRegistration(String.valueOf(latitude), String.valueOf(longitude),getUserId() ,date)) {
+        //if (!locationRegistration(String.valueOf(latitude), String.valueOf(longitude),user,date)) {
           //  Toast.makeText(this, "Error while registering location!", Toast.LENGTH_LONG).show();
-            //finish();
-        //}else {
+        //} else {
           //  Toast.makeText(this, "Location registered!", Toast.LENGTH_LONG).show();
-        //finish();
+           // finish();
         //}
-        if(omsFragment!=null) {
-            omsFragment.setCenter(latitude, longitude);
+        if(osmActivity!=null) {
+            osmActivity.setCenter(latitude, longitude);
 
         }
     }

@@ -40,7 +40,7 @@ public class RegistrationActivity extends Activity implements View.OnClickListen
                     intentToBeCalled.putExtra("callType", "userRegistration");
                     intentToBeCalled.putExtra("userName", userName);
                     intentToBeCalled.putExtra("password", password);
-                    intentToBeCalled.setClass(getApplicationContext(), MainActivity.class);
+                    intentToBeCalled.setClass(getApplicationContext(), OSMActivity.class);
                     startActivity(intentToBeCalled);
                 }
             }
