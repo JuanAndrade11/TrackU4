@@ -115,12 +115,12 @@ public class MainActivity extends AppCompatActivity
     }
     public boolean locationRegistration(String latitude, String longitude, String userID, String date){
         try{
-            Historical newHisrotical = new Historical();
-            newHisrotical.latitude=latitude;
-            newHisrotical.longitude=longitude;
-            newHisrotical.date=date;
-            newHisrotical.userID=userID;
-            INSTANCE.historicalDao().insertHistorical(newHisrotical);
+            Historical newHistorical = new Historical();
+            newHistorical.latitude=latitude;
+            newHistorical.longitude=longitude;
+            newHistorical.date=date;
+            newHistorical.userID=userID;
+            INSTANCE.historicalDao().insertHistorical(newHistorical);
         }catch (Exception error){
             Toast.makeText(this,error.getMessage(),Toast.LENGTH_LONG).show();
             return false;
@@ -164,7 +164,7 @@ public class MainActivity extends AppCompatActivity
             if(checkConnection()){
                 respuesta = "";
                 try{
-                    respuesta = this.webService.execute("http://192.168.0.8:8080/restweb/webresources/control/getdata?id="+userName+"&pas="+password).get();
+                    respuesta = this.webService.execute("http://192.168.0.12:8080/restweb/webresources/control/getdata?id="+userName+"&pas="+password).get();
                     if(!respuesta.equals("")){
                         Toast.makeText(this, "Successful Login!", Toast.LENGTH_LONG).show();
                         this.user = userName;
@@ -195,7 +195,7 @@ public class MainActivity extends AppCompatActivity
             if(checkConnection()){
                 respuesta = "";
                 try{
-                    respuesta = webService.execute("http://192.168.0.8:8080/restweb/webresources/control/query?id="+userName+"&pas="+password).get();
+                    respuesta = webService.execute("http://192.168.0.12:8080/restweb/webresources/control/query?id="+userName+"&pas="+password).get();
                     if(!respuesta.equals("")){
                         Toast.makeText(this, "Successful Register!", Toast.LENGTH_LONG).show();
                         finish();
@@ -322,17 +322,13 @@ public class MainActivity extends AppCompatActivity
     @Override
     public boolean onNavigationItemSelected(MenuItem item) {
         // Handle navigation view item clicks here.
-        int id = item.getItemId();
 
-        if (id == R.id.google_maps_fragment_opt) {
-            // Handle the camera action
-        } else if (id == R.id.osm_fragment_opt) {
             this.omsFragment =  OmsFragment.newInstance("","");
             android.support.v4.app.FragmentTransaction fragmentTransaction =
                     getSupportFragmentManager().beginTransaction();
             fragmentTransaction.replace(R.id.map_control, omsFragment);
             fragmentTransaction.commit();
-        }
+
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         drawer.closeDrawer(GravityCompat.START);
@@ -411,14 +407,13 @@ public class MainActivity extends AppCompatActivity
         this.longitude=longitude;
         ((TextView)findViewById(R.id.latitude_value)).setText(latitude+"");
         ((TextView)findViewById(R.id.longitude_value)).setText(longitude+"");
-        //if (!locationRegistration(String.valueOf(latitude), String.valueOf(longitude),user,date)) {
-          //  Toast.makeText(this, "Error while registering location!", Toast.LENGTH_LONG).show();
-        //} else {
-          //  Toast.makeText(this, "Location registered!", Toast.LENGTH_LONG).show();
-           // finish();
-        //}
-        if(osmActivity!=null) {
-            osmActivity.setCenter(latitude, longitude);
+        if (!locationRegistration(String.valueOf(latitude), String.valueOf(longitude),user,date)) {
+            Toast.makeText(this, "Error while registering location!", Toast.LENGTH_LONG).show();
+        } else {
+           Toast.makeText(this, "Location registered!", Toast.LENGTH_LONG).show();
+        }
+        if(omsFragment!=null) {
+            omsFragment.setCenter(latitude, longitude);
 
         }
     }

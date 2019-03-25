@@ -22,7 +22,11 @@ import org.osmdroid.views.overlay.OverlayItem;
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider;
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 
+import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 
 /**
@@ -42,6 +46,8 @@ public class OmsFragment extends Fragment {
     // TODO: Rename and change types of parameters
     private String mParam1;
     private String mParam2;
+    public String lat;
+    public String lon;
 
     private OnFragmentInteractionListener mListener;
 
@@ -149,18 +155,14 @@ public class OmsFragment extends Fragment {
     }
 
     public void setCenter(double latitude, double longitude) {
+        String date = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(new Date());
+        DecimalFormat df = new DecimalFormat("0.000000");
         IMapController mapController = map.getController();
         mapController.setZoom(9.5);
         GeoPoint newCenter = new GeoPoint(latitude, longitude);
         mapController.setCenter(newCenter);
-
-        Marker startMarker = new Marker(map);
-        startMarker.setPosition(newCenter);
-        startMarker.setAnchor(Marker.ANCHOR_CENTER,Marker.ANCHOR_BOTTOM);
-        startMarker.setTitle("You are here");
-        map.getOverlays().add(startMarker);
-
-
+        lat = df.format(latitude);
+        lon = df.format(longitude);
 
 
     }
