@@ -2,8 +2,8 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <item
-        android:id="@+id/action_settings"
+        android:id="@+id/draw_Dates"
         android:orderInCategory="100"
-        android:title="@string/action_settings"
+        android:title="Draw_Dates"
         app:showAsAction="never" />
 </menu>

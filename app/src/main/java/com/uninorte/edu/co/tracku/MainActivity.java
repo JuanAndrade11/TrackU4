@@ -237,22 +237,12 @@ public class MainActivity extends AppCompatActivity
         //        this.getSupportFragmentManager().findFragmentById(R.id.google_maps_control);
         //supportMapFragment.getMapAsync(this);
 
-        FloatingActionButton floatingActionButton1=
-                (FloatingActionButton)
-                        findViewById(R.id.zoom_in_button);
-        floatingActionButton1.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if(googleMap!=null){
-                    googleMap.moveCamera(CameraUpdateFactory.zoomIn());
-                }
-            }
-        });
+
 
 
         FloatingActionButton floatingActionButton2=
                 (FloatingActionButton)
-                        findViewById(R.id.zoom_out_button);
+                        findViewById(R.id.draw_dates);
         floatingActionButton2.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -262,20 +252,7 @@ public class MainActivity extends AppCompatActivity
             }
         });
 
-        FloatingActionButton floatingActionButton3=
-                (FloatingActionButton)
-                        findViewById(R.id.focus_button);
 
-        floatingActionButton3.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if(googleMap!=null){
-                    googleMap.moveCamera(
-                            CameraUpdateFactory.newLatLng(
-                                    new LatLng(latitude,longitude)));
-                }
-            }
-        });
 
 
     }
@@ -297,26 +274,26 @@ public class MainActivity extends AppCompatActivity
         return true;
     }
 
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
+   //@Override
+    //public boolean onOptionsItemSelected(MenuItem item) {
         // Handle action bar item clicks here. The action bar will
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
+        //int id = item.getItemId();
 
         //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            WebServiceManager.CallWebServiceOperation(this,"http://192.168.0.8:8080/resttest/webresources",
-                    "maincontroller",
-                    "operation",
-                    "PUT",
-                    "This is a test",
-                    "Settings");
-            return true;
-        }
+        //if (id == R.id.action_settings) {
+            //WebServiceManager.CallWebServiceOperation(this,"http://192.168.0.8:8080/resttest/webresources",
+          //          "maincontroller",
+            //        "operation",
+             //       "PUT",
+               //     "This is a test",
+                 //   "Settings");
+            //return true;
+       // }
 
-        return super.onOptionsItemSelected(item);
-    }
+       // return super.onOptionsItemSelected(item);
+    //}
 
     @SuppressWarnings("StatementWithEmptyBody")
     @Override

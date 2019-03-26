@@ -14,9 +14,14 @@ import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.view.Menu;
+import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.android.volley.toolbox.StringRequest;
+import com.github.clans.fab.FloatingActionButton;
+import com.google.android.gms.maps.CameraUpdateFactory;
 import com.uninorte.edu.co.tracku.com.uninorte.edu.co.tracku.gps.GPSManager;
 import com.uninorte.edu.co.tracku.com.uninorte.edu.co.tracku.gps.GPSManagerInterface;
 import com.uninorte.edu.co.tracku.database.core.TrackUDatabaseManager;
@@ -25,6 +30,9 @@ import com.uninorte.edu.co.tracku.database.entities.User;
 import com.uninorte.edu.co.tracku.networking.WebService;
 import com.uninorte.edu.co.tracku.networking.WebServiceManagerInterface;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.osmdroid.api.IMapController;
 import org.osmdroid.config.Configuration;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
@@ -41,8 +49,9 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.ExecutionException;
 
-public class OSMActivity extends AppCompatActivity implements GPSManagerInterface, WebServiceManagerInterface {
+public class OSMActivity extends AppCompatActivity implements GPSManagerInterface, WebServiceManagerInterface, View.OnClickListener, CuadroDialogo.FinalizoCuadroDialogo {
 
     Activity thisActivity=this;
     GPSManager gpsManager;
@@ -54,6 +63,8 @@ public class OSMActivity extends AppCompatActivity implements GPSManagerInterfac
     MapView map;
     String user;
     public WebService webService;
+    Context context;
+
 
     private void checkForDatabase(){
         if (MainActivity.INSTANCE == null){
@@ -70,7 +81,7 @@ public class OSMActivity extends AppCompatActivity implements GPSManagerInterfac
         checkPermissions();
         checkForDatabase();
 
-
+        context = this;
         String callType=getIntent().getStringExtra("callType");
         webService = new WebService();
         String respuesta;
@@ -143,9 +154,31 @@ public class OSMActivity extends AppCompatActivity implements GPSManagerInterfac
         Configuration.getInstance().load(ctx, PreferenceManager.getDefaultSharedPreferences(ctx));
         map = (MapView) findViewById(R.id.oms_map);
         map.setTileSource(TileSourceFactory.MAPNIK);
+        if(checkConnection()){
+            try{
+                drawUsers();
+            }catch (Exception e){
+                Toast.makeText(this, "Error while drawing users!", Toast.LENGTH_LONG).show();
+            }
+        }
 
+        FloatingActionButton floatingActionButton=
+                (FloatingActionButton)
+                        findViewById(R.id.draw_dates);
+        floatingActionButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                new CuadroDialogo(context,OSMActivity.this);
+            }
+        });
     }
 
+
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        getMenuInflater().inflate(R.menu.main, menu);
+        return true;
+    }
     @Override
     protected void onPause() {
         super.onPause();
@@ -250,6 +283,54 @@ public class OSMActivity extends AppCompatActivity implements GPSManagerInterfac
         return true;
     }
 
+    public void drawUsers() throws ExecutionException, InterruptedException, JSONException {
+        String respuesta = "";
+        WebService webService = new WebService();
+        respuesta = webService.execute("http://192.168.0.12:8080/restweb/webresources/control/gethistoricotodos").get();
+        JSONArray jsonArray = new JSONArray(respuesta);
+        for (int i = 0; i < jsonArray.length(); i++){
+            JSONObject jsonObject = jsonArray.getJSONObject(i);
+            String userID = jsonObject.getString("id");
+            String lat = jsonObject.getString("lat");
+            String lon = jsonObject.getString("lon");
+            String date = jsonObject.getString("fecha");
+            GeoPoint point = new GeoPoint(Double.parseDouble(lat), Double.parseDouble(lon));
+            Marker startMarker = new Marker(map);
+            startMarker.setPosition(point);
+            startMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
+            startMarker.setTitle("<"+lat+","+lon+">"+date+" User: "+userID);
+            map.getOverlays().add(startMarker);
+        }
+        if(jsonArray.length()==0){
+            Toast.makeText(this, "No users to show", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    public void drawDates(String usuario, String ini, String fin) throws JSONException, ExecutionException, InterruptedException {
+        ini = ini.replaceAll(" ","%20");
+        fin = fin.replaceAll(" ","%20");
+        String respuesta = "";
+        WebService webService = new WebService();
+        respuesta = webService.execute("http://192.168.0.12:8080/restweb/webresources/control/gethistorico?id="+usuario+"ini="+ini+"fin="+fin).get();
+        JSONArray jsonArray = new JSONArray(respuesta);
+        for (int i = 0; i < jsonArray.length(); i++){
+            JSONObject jsonObject = jsonArray.getJSONObject(i);
+            String userID = jsonObject.getString("id");
+            String lat = jsonObject.getString("lat");
+            String lon = jsonObject.getString("lon");
+            String date = jsonObject.getString("fecha");
+            GeoPoint point = new GeoPoint(Double.parseDouble(lat), Double.parseDouble(lon));
+            Marker startMarker = new Marker(map);
+            startMarker.setPosition(point);
+            startMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
+            startMarker.setTitle("<"+lat+","+lon+">"+date+" User: "+userID);
+            map.getOverlays().add(startMarker);
+        }
+        if(jsonArray.length()==0){
+            Toast.makeText(this, "User does not have locations registered in those dates", Toast.LENGTH_LONG).show();
+        }
+    }
+
     public void checkPermissions(){
         if (ActivityCompat.checkSelfPermission(this,
                 Manifest.permission.ACCESS_FINE_LOCATION) !=
@@ -320,6 +401,7 @@ public class OSMActivity extends AppCompatActivity implements GPSManagerInterfac
 
         String date = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(new Date());
         DecimalFormat df = new DecimalFormat("0.000000");
+        date = date.replaceAll(" ","%20");
         String respuesta;
         if(checkConnection()){
             respuesta = "";
@@ -327,14 +409,11 @@ public class OSMActivity extends AppCompatActivity implements GPSManagerInterfac
                 respuesta = webService.execute("http://192.168.0.12:8080/restweb/webresources/control/sethistorico?id="+user+"&lat="+String.valueOf(latitude)+"&lon="+String.valueOf(longitude)+"&date="+date).get();
                 if(!respuesta.equals("")){
                     Toast.makeText(this, "Location Registered! WS", Toast.LENGTH_LONG).show();
-                    finish();
                 }else {
                     Toast.makeText(this, "Location NOT Register WS!"+respuesta, Toast.LENGTH_LONG).show();
-                    finish();
                 }
             }catch (Exception e){
                 Toast.makeText(this, "Location Register catch!", Toast.LENGTH_LONG).show();
-                finish();
             }
         }else {
             if (!locationRegistration(String.valueOf(latitude), String.valueOf(longitude),user,date)) {
@@ -386,7 +465,7 @@ public class OSMActivity extends AppCompatActivity implements GPSManagerInterfac
         Marker startMarker = new Marker(map);
         startMarker.setPosition(newCenter);
         startMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
-        startMarker.setTitle("<"+lat+","+lon+">"+date);
+        startMarker.setTitle("<"+lat+","+lon+">"+date+" User: "+user);
         map.getOverlays().add(startMarker);
     }
 
@@ -398,5 +477,22 @@ public class OSMActivity extends AppCompatActivity implements GPSManagerInterfac
     @Override
     protected void onDestroy() {
         super.onDestroy();
+    }
+
+    @Override
+    public void onClick(View v) {
+
+    }
+
+    @Override
+    public void ResultadoCuadroDialogo(String id, String Fini, String Ffin) {
+
+        try{
+            drawDates(id,Fini,Ffin);
+        }catch(Exception e){
+            Toast.makeText(this, "Draw Dates not possible!", Toast.LENGTH_LONG).show();
+        }
+
+
     }
 }
