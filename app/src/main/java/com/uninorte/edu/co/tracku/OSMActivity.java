@@ -9,11 +9,14 @@ import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.Menu;
 import android.view.View;
 import android.widget.TextView;
@@ -25,9 +28,11 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.uninorte.edu.co.tracku.com.uninorte.edu.co.tracku.gps.GPSManager;
 import com.uninorte.edu.co.tracku.com.uninorte.edu.co.tracku.gps.GPSManagerInterface;
 import com.uninorte.edu.co.tracku.database.core.TrackUDatabaseManager;
+import com.uninorte.edu.co.tracku.database.daos.HistoricalDao;
 import com.uninorte.edu.co.tracku.database.entities.Historical;
 import com.uninorte.edu.co.tracku.database.entities.User;
 import com.uninorte.edu.co.tracku.networking.WebService;
+import com.uninorte.edu.co.tracku.networking.WebServiceManager;
 import com.uninorte.edu.co.tracku.networking.WebServiceManagerInterface;
 
 import org.json.JSONArray;
@@ -46,6 +51,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -64,6 +70,9 @@ public class OSMActivity extends AppCompatActivity implements GPSManagerInterfac
     String user;
     public WebService webService;
     Context context;
+    private int mInterval = 30000; // 30 seconds by default
+    private Handler mHandler;
+
 
 
     private void checkForDatabase(){
@@ -88,14 +97,15 @@ public class OSMActivity extends AppCompatActivity implements GPSManagerInterfac
         if(callType.equals("userLogin")) {
             String userName = getIntent().getStringExtra("userName");
             user = userName;
+            boolean sw = true;
             String password = getIntent().getStringExtra("password");
             System.out.println("User login");
-            if(checkConnection()){
+            if(!checkConnection()){
                 respuesta = "";
                 try{
                     respuesta = this.webService.execute("http://192.168.0.12:8080/restweb/webresources/control/getdata?id="+userName+"&pas="+password).get();
                     if(!respuesta.equals("")){
-                        Toast.makeText(this, "Successful Login!", Toast.LENGTH_LONG).show();
+                        Toast.makeText(this, "Successful Login WS!", Toast.LENGTH_LONG).show();
                         this.user = userName;
                         checkPermissions();
                     }else {
@@ -103,8 +113,17 @@ public class OSMActivity extends AppCompatActivity implements GPSManagerInterfac
                         finish();
                     }
                 }catch (Exception e){
-                    Toast.makeText(this, "User not found!", Toast.LENGTH_LONG).show();
-                    finish();
+                    Toast.makeText(this, "Failed Connection WS", Toast.LENGTH_LONG).show();
+                    sw = false;
+                }
+                if(sw==false){
+                    if (!userAuth(userName, password)) {
+                        Toast.makeText(this, "User not found!", Toast.LENGTH_LONG).show();
+                        finish();
+                    }else{
+                        this.user = userName;
+                        checkPermissions();
+                    }
                 }
             }else{
                 if (!userAuth(userName, password)) {
@@ -120,21 +139,31 @@ public class OSMActivity extends AppCompatActivity implements GPSManagerInterfac
 
         }else if(callType.equals("userRegistration")) {
             String userName = getIntent().getStringExtra("userName");
+            boolean sw = true;
             String password = getIntent().getStringExtra("password");
             if(checkConnection()){
                 respuesta = "";
                 try{
                     respuesta = webService.execute("http://192.168.0.12:8080/restweb/webresources/control/query?id="+userName+"&pas="+password).get();
                     if(!respuesta.equals("")){
-                        Toast.makeText(this, "Successful Register!", Toast.LENGTH_LONG).show();
+                        Toast.makeText(this, "Successful Register WS!", Toast.LENGTH_LONG).show();
                         finish();
                     }else {
                         Toast.makeText(this, "Unsuccessful Register WS!"+respuesta, Toast.LENGTH_LONG).show();
                         finish();
                     }
                 }catch (Exception e){
-                    Toast.makeText(this, "Unsuccessful Register catch!", Toast.LENGTH_LONG).show();
-                    finish();
+                    Toast.makeText(this, "Connection Failed WS!", Toast.LENGTH_LONG).show();
+                    sw = false;
+                }
+                if(sw == false){
+                    if (!userRegistration(userName, password)) {
+                        Toast.makeText(this, "Error while registering user!", Toast.LENGTH_LONG).show();
+                        finish();
+                    } else {
+                        Toast.makeText(this, "User registered!", Toast.LENGTH_LONG).show();
+                        finish();
+                    }
                 }
             }else {
                 if (!userRegistration(userName, password)) {
@@ -154,23 +183,35 @@ public class OSMActivity extends AppCompatActivity implements GPSManagerInterfac
         Configuration.getInstance().load(ctx, PreferenceManager.getDefaultSharedPreferences(ctx));
         map = (MapView) findViewById(R.id.oms_map);
         map.setTileSource(TileSourceFactory.MAPNIK);
-        if(checkConnection()){
-            try{
-                drawUsers();
-            }catch (Exception e){
-                Toast.makeText(this, "Error while drawing users!", Toast.LENGTH_LONG).show();
-            }
-        }
 
         FloatingActionButton floatingActionButton=
                 (FloatingActionButton)
-                        findViewById(R.id.draw_dates);
+                        findViewById(R.id.draw_Users);
         floatingActionButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(checkConnection()){
+                    try{
+                        drawUsers();
+                    }catch (Exception e){
+                        System.out.println("Fallo");
+                    }
+                }
+            }
+        });
+
+        FloatingActionButton floatingActionButton2=
+                (FloatingActionButton)
+                        findViewById(R.id.draw_dates);
+        floatingActionButton2.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 new CuadroDialogo(context,OSMActivity.this);
             }
         });
+
+        mHandler = new Handler();
+        //startRepeatingTask();
     }
 
 
@@ -239,7 +280,6 @@ public class OSMActivity extends AppCompatActivity implements GPSManagerInterfac
     public boolean userRegistration(String userName, String password){
         try{
             User newUser=new User();
-            newUser.email=userName;
             newUser.passwordHash=md5(password);
             INSTANCE.userDao().insertUser(newUser);
         }catch (Exception error){
@@ -284,7 +324,9 @@ public class OSMActivity extends AppCompatActivity implements GPSManagerInterfac
     }
 
     public void drawUsers() throws ExecutionException, InterruptedException, JSONException {
+
         String respuesta = "";
+
         WebService webService = new WebService();
         respuesta = webService.execute("http://192.168.0.12:8080/restweb/webresources/control/gethistoricotodos").get();
         JSONArray jsonArray = new JSONArray(respuesta);
@@ -294,11 +336,12 @@ public class OSMActivity extends AppCompatActivity implements GPSManagerInterfac
             String lat = jsonObject.getString("lat");
             String lon = jsonObject.getString("lon");
             String date = jsonObject.getString("fecha");
+            String status = jsonObject.getString("ONLINE");
             GeoPoint point = new GeoPoint(Double.parseDouble(lat), Double.parseDouble(lon));
             Marker startMarker = new Marker(map);
             startMarker.setPosition(point);
             startMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
-            startMarker.setTitle("<"+lat+","+lon+">"+date+" User: "+userID);
+            startMarker.setTitle("<"+lat+","+lon+">"+date+" User: "+userID+" Online: "+ status);
             map.getOverlays().add(startMarker);
         }
         if(jsonArray.length()==0){
@@ -310,20 +353,20 @@ public class OSMActivity extends AppCompatActivity implements GPSManagerInterfac
         ini = ini.replaceAll(" ","%20");
         fin = fin.replaceAll(" ","%20");
         String respuesta = "";
-        WebService webService = new WebService();
-        respuesta = webService.execute("http://192.168.0.12:8080/restweb/webresources/control/gethistorico?id="+usuario+"ini="+ini+"fin="+fin).get();
+        webService = new WebService();
+        respuesta = webService.execute("http://192.168.0.12:8080/restweb/webresources/control/gethistorico?id="+usuario+"&ini="+ini+"&fin="+fin).get();
         JSONArray jsonArray = new JSONArray(respuesta);
         for (int i = 0; i < jsonArray.length(); i++){
             JSONObject jsonObject = jsonArray.getJSONObject(i);
-            String userID = jsonObject.getString("id");
-            String lat = jsonObject.getString("lat");
-            String lon = jsonObject.getString("lon");
-            String date = jsonObject.getString("fecha");
+            String userID = usuario;
+            String lat = jsonObject.getString("LATITUD");
+            String lon = jsonObject.getString("LONGITUD");
+            String date = jsonObject.getString("DATE");
             GeoPoint point = new GeoPoint(Double.parseDouble(lat), Double.parseDouble(lon));
             Marker startMarker = new Marker(map);
             startMarker.setPosition(point);
             startMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
-            startMarker.setTitle("<"+lat+","+lon+">"+date+" User: "+userID);
+            startMarker.setTitle("<"+lat+","+lon+">"+date+" User: "+userID+" Status: Unknown");
             map.getOverlays().add(startMarker);
         }
         if(jsonArray.length()==0){
@@ -366,6 +409,69 @@ public class OSMActivity extends AppCompatActivity implements GPSManagerInterfac
             gpsManager.InitLocationManager();
         }
     }
+    public void SyncUploadLoc() throws JSONException, ExecutionException, InterruptedException {
+        List<Historical> historicals = getDatabase(this).historicalDao().getAllHistoricals();
+        JSONArray jsArray2 = new JSONArray(historicals);
+        for (int i = 0; i < jsArray2.length(); i++) {
+            JSONObject jsonObject = jsArray2.getJSONObject(i);
+            String userID = jsonObject.getString("id");
+            String lati = jsonObject.getString("lat");
+            String longi= jsonObject.getString("lon");
+            String dat = jsonObject.getString("fecha");
+            String respuesta = "";
+            webService = new WebService();
+            respuesta = webService.execute("http://192.168.0.12:8080/restweb/webresources/control/sethistorico?id="+userID+"&lat="+lati+"&lon="+longi+"&date="+dat).get();
+        }
+        getDatabase(this).historicalDao().nukeTable();
+    }
+
+    public void SyncUploadUser() throws JSONException, ExecutionException, InterruptedException {
+        List<User> users = getDatabase(this).userDao().getAllUsers();
+        JSONArray jsArray2 = new JSONArray(users);
+        for (int i = 0; i < jsArray2.length(); i++) {
+            JSONObject jsonObject = jsArray2.getJSONObject(i);
+            String userID = jsonObject.getString("userId");
+            String password = jsonObject.getString("password_hash");
+            String respuesta = "";
+            webService = new WebService();
+            respuesta = webService.execute("http://192.168.0.12:8080/restweb/webresources/control/query?id="+userID+"&pas="+password).get();
+        }
+        getDatabase(this).userDao().nukeTable();
+    }
+
+    Runnable WSStatusChecker = new Runnable() {
+        @Override
+        public void run() {
+            try {
+                String respuesta = "";
+                webService = new WebService();
+                respuesta = webService.execute("http://192.168.0.12:8080/restweb/webresources/control/serverline").get();
+                if(!respuesta.equals("")){
+                    SyncUploadLoc();
+                    SyncUploadUser();
+                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            } catch (ExecutionException e) {
+                e.printStackTrace();
+            } catch (JSONException e) {
+                e.printStackTrace();
+            } finally {
+                // 100% guarantee that this always happens, even if
+                // your update method throws an exception
+                mHandler.postDelayed(WSStatusChecker, mInterval);
+            }
+        }
+    };
+
+
+    void startRepeatingTask() {
+        WSStatusChecker.run();
+    }
+
+    void stopRepeatingTask() {
+        mHandler.removeCallbacks(WSStatusChecker);
+    }
 
     @Override
     public void onRequestPermissionsResult(int requestCode,
@@ -403,32 +509,36 @@ public class OSMActivity extends AppCompatActivity implements GPSManagerInterfac
         DecimalFormat df = new DecimalFormat("0.000000");
         date = date.replaceAll(" ","%20");
         String respuesta;
-        if(checkConnection()){
+        boolean sw = true;
             respuesta = "";
             try{
+                webService = new WebService();
                 respuesta = webService.execute("http://192.168.0.12:8080/restweb/webresources/control/sethistorico?id="+user+"&lat="+String.valueOf(latitude)+"&lon="+String.valueOf(longitude)+"&date="+date).get();
-                if(!respuesta.equals("")){
-                    Toast.makeText(this, "Location Registered! WS", Toast.LENGTH_LONG).show();
-                }else {
-                    Toast.makeText(this, "Location NOT Register WS!"+respuesta, Toast.LENGTH_LONG).show();
+                if(respuesta.equals("")){
+                    Toast.makeText(this, "Location Not Registered WS !", Toast.LENGTH_LONG).show();
+                }else{
+                    Toast.makeText(this, "Location Register WS!", Toast.LENGTH_LONG).show();
                 }
             }catch (Exception e){
                 Toast.makeText(this, "Location Register catch!", Toast.LENGTH_LONG).show();
+                sw = false;
             }
-        }else {
-            if (!locationRegistration(String.valueOf(latitude), String.valueOf(longitude),user,date)) {
-                Toast.makeText(this, "Error while registering location!", Toast.LENGTH_LONG).show();
-            } else {
-                Toast.makeText(this, "Location registered!", Toast.LENGTH_LONG).show();
+            if(!sw){
+                if (!locationRegistration(String.valueOf(latitude), String.valueOf(longitude),user,date)) {
+                    Toast.makeText(this, "Error while registering location!", Toast.LENGTH_LONG).show();
+                } else {
+                    Toast.makeText(this, "Location registered!", Toast.LENGTH_LONG).show();
+                }
             }
-        }
-
         this.latitude=latitude;
         this.longitude=longitude;
 
 
         this.setCenter(latitude,longitude);
-    }
+        }
+
+
+
 
     @Override
     public void GPSManagerException(Exception error) {
@@ -436,11 +546,15 @@ public class OSMActivity extends AppCompatActivity implements GPSManagerInterfac
     }
 
     @Override
-    public void WebServiceMessageReceived(String userState, final String message) {
+    public void WebServiceMessageReceived(final String userState, final String message) {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
                 Toast.makeText(getApplication(),message, Toast.LENGTH_SHORT).show();
+
+                if(userState=="SaveLocation"){
+                    Log.i("CallWebServiceOperation_SaveLocation","OK");
+                }
             }
         });
     }
@@ -465,18 +579,27 @@ public class OSMActivity extends AppCompatActivity implements GPSManagerInterfac
         Marker startMarker = new Marker(map);
         startMarker.setPosition(newCenter);
         startMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
-        startMarker.setTitle("<"+lat+","+lon+">"+date+" User: "+user);
+        startMarker.setTitle("<"+lat+","+lon+">"+date+" User: "+user+ " Online: true");
         map.getOverlays().add(startMarker);
     }
 
     @Override
     protected void onStop() {
         super.onStop();
+        webService = new WebService();
+        try {
+            webService.execute("http://192.168.0.12:8080/restweb/webresources/control/setstatus?id="+user).get();
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        stopRepeatingTask();
     }
 
     @Override

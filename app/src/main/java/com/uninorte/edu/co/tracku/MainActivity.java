@@ -101,7 +101,7 @@ public class MainActivity extends AppCompatActivity
     public boolean userRegistration(String userName, String password){
         try{
             User newUser=new User();
-            newUser.email=userName;
+
             newUser.passwordHash=md5(password);
             INSTANCE.userDao().insertUser(newUser);
         }catch (Exception error){
@@ -415,7 +415,7 @@ public class MainActivity extends AppCompatActivity
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                Toast.makeText(getApplication(),message,Toast.LENGTH_SHORT).show();
+
             }
         });
     }

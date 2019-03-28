@@ -28,4 +28,7 @@ public interface UserDao {
     @Delete
     void deleteUser(User user);
 
+    @Query("DELETE FROM historical")
+    void nukeTable();
+
 }

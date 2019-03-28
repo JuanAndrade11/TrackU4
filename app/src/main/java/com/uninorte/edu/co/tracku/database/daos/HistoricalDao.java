@@ -24,4 +24,7 @@ public interface HistoricalDao {
     @Delete
     void deleteHistorical(Historical historical);
 
+    @Query("DELETE FROM historical")
+    void nukeTable();
+
 }

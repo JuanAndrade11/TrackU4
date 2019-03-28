@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     app:layout_behavior="@string/appbar_scrolling_view_behavior"
-    tools:context=".MainActivity"
+    tools:context=".OSMActivity"
     tools:showIn="@layout/app_bar_main"
     android:orientation="vertical"
     >
@@ -64,7 +64,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:name="com.uninorte.edu.co.tracku.OmsFragment"
-        tools:context=".MainActivity"
+        tools:context=".OSMActivity"
         android:id="@+id/map_control"
         ></fragment>
 
